@@ -13,7 +13,8 @@
 /.xray-oracle
 /reference
 /local
-/assets
+/assets/*
+!/assets/geo/
 /squashfs-root
 
 # ---- Nested / sibling projects with their own repos ----
