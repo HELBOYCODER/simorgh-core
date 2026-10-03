@@ -394,7 +394,7 @@ async fn egress(stack: &WgStack) -> Result<(), String> {
 
 /// Whether `exit` carries a request when reached through `tunnel`, and how
 /// long it took to open the connection and get the answer. For finding exits
-/// worth listing (`zeronet-warp gather`); the connection is dropped.
+/// worth listing (`simorgh-warp gather`); the connection is dropped.
 pub async fn test_exit(
     tunnel: &Tunnel,
     exit: &zero_config::Outbound,

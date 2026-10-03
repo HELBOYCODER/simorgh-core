@@ -1,12 +1,12 @@
-//! `zeronet-warp` — get a Cloudflare WARP account, and look for edge
+//! `simorgh-warp` — get a Cloudflare WARP account, and look for edge
 //! addresses that work on this network.
 //!
 //! ```text
-//! zeronet-warp register --accept-tos [--route auto|wireguard|masque-h2|masque-h3]
+//! simorgh-warp register --accept-tos [--route auto|wireguard|masque-h2|masque-h3]
 //!                       [--proxy 127.0.0.1:10809]
 //!                       [--relay https://worker/path/warp --auth CREDENTIAL]
-//! zeronet-warp scan <warp:// link | ->
-//! zeronet-warp gather <warp:// link | -> [--want 5] [--sample 150] [--reverse]
+//! simorgh-warp scan <warp:// link | ->
+//! simorgh-warp gather <warp:// link | -> [--want 5] [--sample 150] [--reverse]
 //! ```
 //!
 //! `register` makes the keys on this machine, sends only their public halves
@@ -41,7 +41,7 @@ fn value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
 
 fn usage() -> ! {
     eprintln!(
-        "usage:\n  zeronet-warp register --accept-tos [--route auto] [--proxy ADDR] [--relay URL --auth CREDENTIAL]\n  zeronet-warp scan <warp:// link | ->\n  zeronet-warp gather <warp:// link | -> [--want N] [--sample N] [--reverse]"
+        "usage:\n  simorgh-warp register --accept-tos [--route auto] [--proxy ADDR] [--relay URL --auth CREDENTIAL]\n  simorgh-warp scan <warp:// link | ->\n  simorgh-warp gather <warp:// link | -> [--want N] [--sample N] [--reverse]"
     );
     std::process::exit(2);
 }

@@ -1,9 +1,9 @@
-//! `zeronet-stats` — the sealed totals of how each connection mode does.
+//! `simorgh-stats` — the sealed totals of how each connection mode does.
 //!
 //! ```text
-//! zeronet-stats keygen
-//! zeronet-stats seal --reports reports.json --public <hex> --out-dir modes [--days 2]
-//! zeronet-stats open <file.sealed> [<more.sealed> ...]      (secret in MODE_STATS_SECRET)
+//! simorgh-stats keygen
+//! simorgh-stats seal --reports reports.json --public <hex> --out-dir modes [--days 2]
+//! simorgh-stats open <file.sealed> [<more.sealed> ...]      (secret in MODE_STATS_SECRET)
 //! ```
 //!
 //! `keygen` is run once, on the maintainer's own computer; it prints a public
@@ -21,7 +21,7 @@ use zero_discovery::modestats;
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("zeronet-stats: {e}");
+        eprintln!("simorgh-stats: {e}");
         std::process::exit(1);
     }
 }
@@ -43,7 +43,7 @@ fn run() -> Result<(), String> {
         }
         Some("seal") => seal(args.collect()),
         Some("open") => open(args.collect()),
-        _ => Err("usage: zeronet-stats keygen | seal --reports F --public HEX --out-dir D | open FILE...".into()),
+        _ => Err("usage: simorgh-stats keygen | seal --reports F --public HEX --out-dir D | open FILE...".into()),
     }
 }
 

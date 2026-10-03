@@ -1,20 +1,20 @@
-//! `zeronet-sign` — makes and verifies the detached Ed25519 signatures that
+//! `simorgh-sign` — makes and verifies the detached Ed25519 signatures that
 //! protect the crowd-data lists (see `zero_discovery::sign`).
 //!
 //! ```text
 //! # Once, by a maintainer: print a fresh key pair.
-//! zeronet-sign keygen
+//! simorgh-sign keygen
 //!
 //! # In CI: sign a file, writing <file>.sig beside it.
 //! #   the 32-byte seed comes from $CROWD_SIGNING_KEY (base64 or hex).
-//! zeronet-sign sign verified.txt rankings.json
+//! simorgh-sign sign verified.txt rankings.json
 //!
 //! # Anywhere: check a file against a public key (hex), by default the one
 //! # compiled into this build.
-//! zeronet-sign verify [--key <hex>] verified.txt
+//! simorgh-sign verify [--key <hex>] verified.txt
 //!
 //! # Does the seed in $CROWD_SIGNING_KEY belong to the key the app trusts?
-//! zeronet-sign check
+//! simorgh-sign check
 //! ```
 //!
 //! `keygen` prints the public key (paste it into `sign::PUBLIC_KEY_HEX`) and
@@ -27,7 +27,7 @@ use zero_discovery::sign;
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("zeronet-sign: {e}");
+        eprintln!("simorgh-sign: {e}");
         std::process::exit(1);
     }
 }

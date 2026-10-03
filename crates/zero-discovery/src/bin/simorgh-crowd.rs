@@ -1,9 +1,9 @@
-//! `zeronet-crowd` — builds `rankings.json` from the relay's report export.
+//! `simorgh-crowd` — builds `rankings.json` from the relay's report export.
 //!
 //! Run by the `crowd` GitHub Action:
 //!
 //! ```text
-//! zeronet-crowd --reports reports.json --sources sources.json \
+//! simorgh-crowd --reports reports.json --sources sources.json \
 //!               [--sources more.json] --out rankings.json [--relays https://a,https://b]
 //! ```
 //!
@@ -89,7 +89,7 @@ fn parse_args() -> Result<Args, String> {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("zeronet-crowd: {e}");
+        eprintln!("simorgh-crowd: {e}");
         std::process::exit(1);
     }
 }

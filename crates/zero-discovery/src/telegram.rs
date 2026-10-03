@@ -7,7 +7,7 @@
 //! other channels it mentions (so the list can grow by itself), and where
 //! the next page of older posts starts.
 //!
-//! The crawl itself lives in the `zeronet-harvest` binary.
+//! The crawl itself lives in the `simorgh-harvest` binary.
 
 /// The web preview of a channel's latest posts, or of the posts before
 /// `before` (a post number).

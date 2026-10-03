@@ -1,10 +1,10 @@
-//! `zeronet-harvest` — finds working public configs for the app to try
+//! `simorgh-harvest` — finds working public configs for the app to try
 //! first.
 //!
 //! Run by the `harvest` GitHub Action:
 //!
 //! ```text
-//! zeronet-harvest --sources deploy/crowd/sources.json \
+//! simorgh-harvest --sources deploy/crowd/sources.json \
 //!                 --sources deploy/crowd/harvest-sources.json \
 //!                 --telegram deploy/crowd/telegram-channels.json \
 //!                 --telegram-state telegram-state.json \
@@ -44,7 +44,7 @@
 //! listed under `priority` in telegram-channels.json:
 //!
 //! ```text
-//! zeronet-harvest --channel radvpne --channel ciaconfig \
+//! simorgh-harvest --channel radvpne --channel ciaconfig \
 //!                 --telegram-state fresh-state.json --retest old-fresh.txt \
 //!                 --out fresh.txt --want 300 --min 0 --minutes 5
 //! ```
@@ -54,7 +54,7 @@
 //! published list:
 //!
 //! ```text
-//! zeronet-harvest merge --top fresh.txt --drop old-fresh.txt \
+//! simorgh-harvest merge --top fresh.txt --drop old-fresh.txt \
 //!                       --rest verified.txt --out verified.txt
 //! ```
 
@@ -152,7 +152,7 @@ fn main() {
         run()
     };
     if let Err(e) = result {
-        eprintln!("zeronet-harvest: {e}");
+        eprintln!("simorgh-harvest: {e}");
         std::process::exit(1);
     }
 }

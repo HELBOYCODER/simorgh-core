@@ -86,7 +86,7 @@ pub fn verify(body: &[u8], signature: &str) -> bool {
 }
 
 /// Sign `body` with the 32-byte Ed25519 seed `secret`, returning the
-/// `ed25519:<hex>` line to publish. Used by the `zeronet-sign` CLI in CI.
+/// `ed25519:<hex>` line to publish. Used by the `simorgh-sign` CLI in CI.
 pub fn sign_with(secret: &[u8; 32], body: &[u8]) -> String {
     let key = SigningKey::from_bytes(secret);
     let signature = key.sign(body);

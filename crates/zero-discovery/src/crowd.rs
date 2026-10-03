@@ -3,7 +3,7 @@
 //!
 //! Apps report what their tests found — "this public server answered on this
 //! network in 180 ms", "this one did not" — to a relay that only queues
-//! them. A scheduled job ([`aggregate`], run by the `zeronet-crowd` binary in
+//! them. A scheduled job ([`aggregate`], run by the `simorgh-crowd` binary in
 //! a GitHub Action) turns the last hours of reports into `rankings.json`,
 //! committed to the repository, which apps read before searching: the
 //! servers most people on the same carrier got through with are tested

@@ -119,7 +119,7 @@ file can sit on a public branch without telling anyone anything.
 Set up once, on your own computer:
 
 ```
-cargo run -p zero-discovery --bin zeronet-stats -- keygen
+cargo run -p zero-discovery --bin simorgh-stats -- keygen
 ```
 
 It prints a **public** key and a **secret** key. Put the public one in the
@@ -131,7 +131,7 @@ To read a day:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/zeghostwriter/ZeroNet/crowd-data/modes/2026-09-30.sealed -o day.sealed
-MODE_STATS_SECRET=<the secret key> cargo run -p zero-discovery --bin zeronet-stats -- open day.sealed
+MODE_STATS_SECRET=<the secret key> cargo run -p zero-discovery --bin simorgh-stats -- open day.sealed
 ```
 
 If the secret key is ever lost, make a new pair and change the variable; the
