@@ -54,6 +54,7 @@ const USAGE: &str = "\
 simorghd — the Simorgh engine daemon
 
 usage: simorghd [--data-dir DIR] [--listen 127.0.0.1:PORT] [--token-file FILE]
+               [--stop-file FILE]
 
   --data-dir DIR     logs (simorgh.log), feed caches and managed assets go
                      here. Default: ~/Library/Application Support/Simorgh
@@ -64,6 +65,11 @@ usage: simorghd [--data-dir DIR] [--listen 127.0.0.1:PORT] [--token-file FILE]
   --token-file FILE  also write the bearer token to FILE (0600). The token is
                      always printed on the SIMORGH_READY line; a GUI that
                      spawns simorghd can read it there instead.
+  --stop-file FILE   graceful-stop contract for GUI-launched (privileged)
+                     daemons: every second the daemon checks whether FILE
+                     exists and exits when it does. The directory must exist
+                     or be creatable and writable, or startup is refused. A
+                     stale FILE present at startup is removed.
 
 environment:
   SIMORGH_LOG        off|error|warn|info|debug|trace (default warn)
@@ -74,6 +80,7 @@ struct Args {
     data_dir: PathBuf,
     listen: SocketAddr,
     token_file: Option<PathBuf>,
+    stop_file: Option<PathBuf>,
 }
 
 fn default_data_dir() -> PathBuf {
@@ -93,6 +100,7 @@ fn parse_args() -> Result<Option<Args>, String> {
     let mut data_dir: Option<PathBuf> = None;
     let mut listen: Option<SocketAddr> = None;
     let mut token_file: Option<PathBuf> = None;
+    let mut stop_file: Option<PathBuf> = None;
     let mut argv = std::env::args().skip(1);
     while let Some(argument) = argv.next() {
         let mut value = |name: &str| -> Result<String, String> {
@@ -116,6 +124,7 @@ fn parse_args() -> Result<Option<Args>, String> {
                 listen = Some(parsed);
             }
             "--token-file" => token_file = Some(PathBuf::from(value("--token-file")?)),
+            "--stop-file" => stop_file = Some(PathBuf::from(value("--stop-file")?)),
             "--help" | "-h" => return Ok(None),
             other => return Err(format!("unknown argument {other:?}; try --help")),
         }
@@ -127,6 +136,7 @@ fn parse_args() -> Result<Option<Args>, String> {
             0,
         )),
         token_file,
+        stop_file,
     }))
 }
 
@@ -198,6 +208,14 @@ fn main() -> std::process::ExitCode {
 }
 
 async fn run(args: Args) -> Result<(), String> {
+    // The graceful-stop contract (a GUI that launched this daemon privileged
+    // cannot prompt a second time to stop it): --stop-file gives a path the
+    // GUI creates world-writable to ask for a clean exit. Its directory must
+    // be usable, or the contract is broken before the first tunnel comes up;
+    // refuse startup rather than run a daemon nobody can stop.
+    if let Some(path) = &args.stop_file {
+        prepare_stop_file(path)?;
+    }
     let listener = TcpListener::bind(args.listen)
         .await
         .map_err(|error| format!("could not bind {}: {error}", args.listen))?;
@@ -221,12 +239,13 @@ async fn run(args: Args) -> Result<(), String> {
         .map_err(|error| format!("cannot write the ready line: {error}"))?;
     tracing::info!(%addr, "simorghd serving the RPC");
 
+    let stop_file = args.stop_file;
     let state = Arc::new(http::State {
         token,
         data_dir: args.data_dir,
     });
     let serving = http::serve(listener, Arc::clone(&state));
-    wait_for_shutdown(serving).await;
+    wait_for_shutdown(serving, stop_file).await;
 
     // Best effort: the engine outliving the RPC by a moment is confusing,
     // and a half-dead runtime would keep the user's ports bound.
@@ -239,7 +258,7 @@ async fn run(args: Args) -> Result<(), String> {
     Ok(())
 }
 
-async fn wait_for_shutdown<F>(serving: F)
+async fn wait_for_shutdown<F>(serving: F, stop_file: Option<PathBuf>)
 where
     F: std::future::Future<Output = std::io::Result<()>>,
 {
@@ -263,6 +282,7 @@ where
                     std::future::pending::<()>().await;
                 }
             } => {}
+            _ = wait_for_stop_file(stop_file) => {}
         }
     }
     #[cfg(not(unix))]
@@ -274,8 +294,47 @@ where
                 }
             }
             _ = tokio::signal::ctrl_c() => {}
+            _ = wait_for_stop_file(stop_file) => {}
         }
     }
+}
+
+/// The GUI's second-free disconnect: it creates the world-writable stop file,
+/// this resolves once that file exists, and the daemon exits cleanly (stopping
+/// the engine on the way out). One-second cadence — a stop the user feels as
+/// "now" without a second admin prompt.
+async fn wait_for_stop_file(stop_file: Option<PathBuf>) {
+    let Some(path) = stop_file else {
+        std::future::pending::<()>().await;
+        return;
+    };
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        if path.exists() {
+            tracing::info!(path = %path.display(), "stop file appeared; shutting down");
+            return;
+        }
+    }
+}
+
+/// The GUI's graceful-stop handshake: make the stop file's directory real and
+/// writable, and clear any stale marker so a fresh daemon does not exit the
+/// instant it starts. Refuses to start when the contract cannot be honoured.
+fn prepare_stop_file(path: &std::path::Path) -> Result<(), String> {
+    let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    std::fs::create_dir_all(dir)
+        .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
+    // Probe writability with a sibling file; the GUI drops the real marker in
+    // later, so the daemon itself never needs to write the stop path.
+    let probe = dir.join(".simorgh-stop-probe");
+    std::fs::write(&probe, b"")
+        .map_err(|error| format!("stop-file directory {} is not writable: {error}", dir.display()))?;
+    let _ = std::fs::remove_file(&probe);
+    if path.exists() {
+        std::fs::remove_file(path)
+            .map_err(|error| format!("cannot clear stale {}: {error}", path.display()))?;
+    }
+    Ok(())
 }
 
 /// Write the bearer token, and only the token, so a host can read it without

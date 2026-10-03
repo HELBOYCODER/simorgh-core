@@ -104,6 +104,17 @@ config asks for by the presence of an inbound with `"protocol": "tun"`:
   so the GUI can show its own prompt and re-run `simorghd` under `sudo`
   (or hand it a pre-opened descriptor... not part of this contract version).
 
+  **One-time admin via stop-file.** A GUI that must not prompt twice launches
+  the privileged daemon once with `--stop-file <shared>/STOP` (a directory the
+  unprivileged GUI user also owns) and drives it over the same RPC at a fixed
+  loopback port (the desktop app uses `127.0.0.1:37038`) with the token read
+  from `--token-file`. To disconnect, the GUI simply creates the world-writable
+  STOP file; the daemon polls for it every second, exits cleanly (stopping the
+  engine on the way out), and needs no second prompt. Startup refuses if the
+  stop-file directory is not writable — a daemon nobody can stop is worse than
+  one that says so at start. A stale marker left over from a crashed session is
+  cleared before the fresh daemon binds its port.
+
 ### `reload`
 
 Mirrors `reload(configJson): String?`. Same body as `start`.
