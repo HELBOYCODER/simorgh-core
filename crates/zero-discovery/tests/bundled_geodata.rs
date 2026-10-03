@@ -9,10 +9,7 @@ use zero_config::routing::{DomainPattern, IpPattern};
 use zero_router::{DomainMatcher, GeoData, IpMatcher, Router};
 
 fn bundled() -> GeoData {
-    let dir = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../assets/geo"
-    );
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/geo");
     let geosite = std::fs::read(format!("{dir}/geosite.dat")).expect("bundled geosite.dat");
     let geoip = std::fs::read(format!("{dir}/geoip.dat")).expect("bundled geoip.dat");
     GeoData::from_xray_bytes(&geosite, &geoip).expect("bundled geodata decodes")
@@ -83,10 +80,7 @@ async fn the_runtime_loads_the_bundle_and_does_not_fetch_over_it() {
     let dir = std::env::temp_dir().join(format!("zray-bundled-geo-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let bundle = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../assets/geo"
-    );
+    let bundle = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/geo");
     for name in ["geosite.dat", "geoip.dat"] {
         std::fs::copy(format!("{bundle}/{name}"), dir.join(name)).unwrap();
     }
