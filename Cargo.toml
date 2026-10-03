@@ -17,7 +17,6 @@ members = [
     "crates/zray-mobile",
     "crates/zero-scanner",
     "crates/zero-discovery",
-    "crates/zeronet-tui",
     "crates/simorgh-daemon",
 ]
 
@@ -45,7 +44,6 @@ zero-scanner = { path = "crates/zero-scanner", version = "0.1.0" }
 zero-discovery = { path = "crates/zero-discovery", version = "0.1.0" }
 zray-cli = { path = "crates/zray-cli", version = "0.1.0" }
 zray-mobile = { path = "crates/zray-mobile", version = "0.1.0" }
-zeronet-tui = { path = "crates/zeronet-tui", version = "0.1.0" }
 simorgh-daemon = { path = "crates/simorgh-daemon", version = "0.1.0" }
 
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "time", "sync", "signal"] }

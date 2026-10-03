@@ -130,7 +130,6 @@ pub fn init(data_dir: &Path, level: LevelFilter) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write as _;
 
     #[test]
     fn levels_parse_and_unknown_ones_are_rejected() {
