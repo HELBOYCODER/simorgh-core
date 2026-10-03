@@ -11,7 +11,7 @@ use zero_router::{DomainMatcher, GeoData, IpMatcher, Router};
 fn bundled() -> GeoData {
     let dir = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../ZeroNet-Mobile/app/src/main/assets/geo"
+        "/../../assets/geo"
     );
     let geosite = std::fs::read(format!("{dir}/geosite.dat")).expect("bundled geosite.dat");
     let geoip = std::fs::read(format!("{dir}/geoip.dat")).expect("bundled geoip.dat");
@@ -85,7 +85,7 @@ async fn the_runtime_loads_the_bundle_and_does_not_fetch_over_it() {
     std::fs::create_dir_all(&dir).unwrap();
     let bundle = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../ZeroNet-Mobile/app/src/main/assets/geo"
+        "/../../assets/geo"
     );
     for name in ["geosite.dat", "geoip.dat"] {
         std::fs::copy(format!("{bundle}/{name}"), dir.join(name)).unwrap();
