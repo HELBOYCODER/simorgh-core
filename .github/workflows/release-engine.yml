@@ -1,0 +1,101 @@
+name: release engine
+
+# Push a tag like `engine-v0.1.0` and the Simorgh engine lands on the GitHub
+# Releases page: `simorghd` (the headless daemon the Simorgh GUI drives) as a
+# macOS universal binary, plus the standalone `zray` CLI engine the upstream
+# release ships, the same way its release workflow builds them. Running it by
+# hand builds the same files as workflow artifacts without publishing a
+# release.
+
+on:
+  push:
+    tags: ["engine-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Publish as this tag (e.g. engine-v0.1.0). Leave empty to only build."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
+
+jobs:
+  engine:
+    name: macOS engine (universal)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: |
+          cargo build --release -p simorgh-daemon --target aarch64-apple-darwin
+          cargo build --release -p simorgh-daemon --target x86_64-apple-darwin
+          cargo build --release -p zray-cli --target aarch64-apple-darwin
+          cargo build --release -p zray-cli --target x86_64-apple-darwin
+      - name: package
+        run: |
+          mkdir -p dist
+          # The daemon: `simorghd`, universal, ad-hoc signed — Apple Silicon
+          # refuses to run unsigned code. A tarball keeps the executable bit.
+          engine=SimorghEngine-macOS-universal
+          mkdir -p "$engine"
+          lipo -create -output "$engine/simorghd" \
+            target/aarch64-apple-darwin/release/simorghd \
+            target/x86_64-apple-darwin/release/simorghd
+          codesign --force --sign - "$engine/simorghd"
+          # The bare binary, same contents, for hosts that fetch one file.
+          cp "$engine/simorghd" dist/simorghd-macOS-universal
+          # Zray Core: the engine without the daemon, for scripts and servers
+          # (upstream's `zray run config.json`).
+          lipo -create -output "$engine/zray" \
+            target/aarch64-apple-darwin/release/zray \
+            target/x86_64-apple-darwin/release/zray
+          codesign --force --sign - "$engine/zray"
+          cp LICENSE NOTICE.md docs/rpc-contract.md "$engine/"
+          tar -czf "dist/$engine.tar.gz" "$engine"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-macos
+          path: dist/*
+
+  publish:
+    name: publish release
+    # A pushed tag, or a manual run given a version: the release action then
+    # creates the tag on this commit.
+    if: github.ref_type == 'tag' || inputs.version != ''
+    needs: engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Simorgh Engine ${{ env.RELEASE_TAG }}
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            ## Simorgh Engine (macOS)
+
+            | File | What it is |
+            |---|---|
+            | `SimorghEngine-macOS-universal.tar.gz` | `simorghd` (the headless RPC daemon the Simorgh GUI drives) + `zray` (the standalone CLI engine), Intel and Apple Silicon, ad-hoc signed |
+            | `simorghd-macOS-universal` | the daemon alone, one bare file |
+            | `SHA256SUMS.txt` | checksums |
+
+            The daemon speaks the loopback HTTP/JSON RPC documented in
+            `rpc-contract.md` (included in the tarball): start it, read the
+            `SIMORGH_READY {"port":…,"token":…}` line, and drive everything
+            from there. VPN mode needs root; proxy mode does not.

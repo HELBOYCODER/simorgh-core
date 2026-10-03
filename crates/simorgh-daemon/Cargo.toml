@@ -1,0 +1,33 @@
+[package]
+name = "simorgh-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Headless Simorgh engine daemon (simorghd): a loopback HTTP/JSON RPC over the Zray-Core engine, built for a native GUI to drive."
+
+[[bin]]
+name = "simorghd"
+path = "src/main.rs"
+
+[dependencies]
+# The engine itself: zray-mobile owns the INSTANCE lifecycle (start/reload/
+# stop/stats) and zero-discovery owns the jobs, the link parser and the
+# config builder. The daemon adds CLI plumbing, logging and the HTTP surface.
+zero-core = { workspace = true }
+zero-tun = { workspace = true }
+zero-discovery = { workspace = true }
+zray-mobile = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+httparse = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+# `Registry` and the `reload` layer (live `set_log_level`) sit behind the
+# `registry` feature in tracing-subscriber 0.3.
+tracing-subscriber = { workspace = true, features = ["registry"] }
+subtle = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "io-util", "net"] }
