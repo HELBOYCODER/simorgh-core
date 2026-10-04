@@ -94,6 +94,9 @@ pub fn with_desktop_tun_routes(config: &Value) -> Value {
         if settings.contains_key("routes") {
             continue;
         }
+        // The runtime only installs routes when autoRoute is on; mobile hosts
+        // own their routing and never set it.
+        settings.insert("autoRoute".to_string(), Value::Bool(true));
         let mut routes = vec!["0.0.0.0/1".to_string(), "128.0.0.0/1".to_string()];
         let ipv6 = settings
             .get("addresses")
@@ -164,6 +167,7 @@ mod tests {
         let routes = out["inbounds"][0]["settings"]["routes"].as_array().unwrap();
         assert_eq!(routes.len(), 2);
         assert_eq!(routes[0], json!("0.0.0.0/1"));
+        assert_eq!(out["inbounds"][0]["settings"]["autoRoute"], json!(true));
     }
 
     #[test]
