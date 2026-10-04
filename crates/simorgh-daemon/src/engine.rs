@@ -69,6 +69,48 @@ fn config_string(config: &Value) -> Result<CString, String> {
         .map_err(|_| "the configuration contains a NUL byte".to_string())
 }
 
+/// A tun inbound without routes brings the device up but routes nothing:
+/// Android's `VpnService` installs routes from its own builder, so the
+/// mobile config contract never carried them. On the desktop this process
+/// creates the utun itself, so the default coverage is added here — split
+/// halves rather than `default` so the host's own route table survives, and
+/// `zero_runtime` bypass-routes the proxy servers' addresses around them.
+pub fn with_desktop_tun_routes(config: &Value) -> Value {
+    let mut config = config.clone();
+    let Some(inbounds) = config.get_mut("inbounds").and_then(Value::as_array_mut) else {
+        return config;
+    };
+    for inbound in inbounds.iter_mut() {
+        if inbound.get("protocol").and_then(Value::as_str) != Some("tun") {
+            continue;
+        }
+        let Some(inbound) = inbound.as_object_mut() else { continue };
+        let settings = inbound
+            .entry("settings")
+            .or_insert_with(|| serde_json::json!({}));
+        let Some(settings) = settings.as_object_mut() else {
+            continue;
+        };
+        if settings.contains_key("routes") {
+            continue;
+        }
+        let mut routes = vec!["0.0.0.0/1".to_string(), "128.0.0.0/1".to_string()];
+        let ipv6 = settings
+            .get("addresses")
+            .and_then(Value::as_array)
+            .is_some_and(|a| {
+                a.iter().filter_map(Value::as_str).any(|addr| {
+                    addr.split('/').next().is_some_and(|ip| ip.contains(':'))
+                })
+            });
+        if ipv6 {
+            routes.extend(["::/1".to_string(), "8000::/1".to_string()]);
+        }
+        settings.insert("routes".to_string(), Value::Array(routes.into_iter().map(Value::String).collect()));
+    }
+    config
+}
+
 /// `start(configJson)`: begin serving the generation described by `config`.
 /// Blocks until the listeners are up (bounded by zray-mobile's own
 /// `START_TIMEOUT_SECONDS`); call it from a blocking context.
@@ -78,7 +120,7 @@ pub fn start(config: &Value) -> Result<(), String> {
             return Err(reason);
         }
     }
-    let text = config_string(config)?;
+    let text = config_string(&with_desktop_tun_routes(config))?;
     lifecycle(|| {
         // SAFETY: `text` is a live NUL-terminated UTF-8 string for the whole
         // call, and the C entry point reads it without retaining the pointer.
@@ -88,7 +130,7 @@ pub fn start(config: &Value) -> Result<(), String> {
 
 /// `reload(configJson)`: swap the configuration without dropping listeners.
 pub fn reload(config: &Value) -> Result<(), String> {
-    let text = config_string(config)?;
+    let text = config_string(&with_desktop_tun_routes(config))?;
     lifecycle(|| unsafe { zray_mobile::zray_reload(text.as_ptr()) })
 }
 
@@ -107,4 +149,34 @@ pub fn network_changed() -> Result<(), String> {
 /// `stats()`: the contract's counters, or `None` when nothing is running.
 pub fn stats() -> Option<Value> {
     zray_mobile::stats_value()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_routeless_tun_gets_split_default_routes() {
+        let out = with_desktop_tun_routes(&json!({
+            "inbounds": [{"protocol": "tun", "settings": {"addresses": ["172.19.0.1/30"], "mtu": 1500}}]
+        }));
+        let routes = out["inbounds"][0]["settings"]["routes"].as_array().unwrap();
+        assert_eq!(routes.len(), 2);
+        assert_eq!(routes[0], json!("0.0.0.0/1"));
+    }
+
+    #[test]
+    fn ipv6_addresses_pull_in_the_v6_halves_and_existing_routes_survive() {
+        let out = with_desktop_tun_routes(&json!({
+            "inbounds": [
+                {"protocol": "tun", "settings": {"addresses": ["172.19.0.1/30", "fdfe::1/126"]}},
+                {"protocol": "tun", "settings": {"routes": ["10.0.0.0/8"]}},
+                {"protocol": "socks", "settings": {}}
+            ]
+        }));
+        assert_eq!(out["inbounds"][0]["settings"]["routes"].as_array().unwrap().len(), 4);
+        assert_eq!(out["inbounds"][1]["settings"]["routes"][0], json!("10.0.0.0/8"));
+        assert!(out["inbounds"][2]["settings"].get("routes").is_none());
+    }
 }
