@@ -227,7 +227,7 @@ async fn run(args: Args) -> Result<(), String> {
     // for hosts that would rather read a 0600 file than parse stdout.
     let token = uuid::Uuid::new_v4().simple().to_string();
     if let Some(path) = &args.token_file {
-        write_token_file(path, &token)?;
+        write_token_file(path, &token, args.stop_file.is_some())?;
     }
 
     println!(
@@ -341,7 +341,7 @@ fn prepare_stop_file(path: &std::path::Path) -> Result<(), String> {
 /// the READY line. Mode 0600 on unix: it is a credential for driving the
 /// whole engine.
 #[cfg(unix)]
-fn write_token_file(path: &std::path::Path, token: &str) -> Result<(), String> {
+fn write_token_file(path: &std::path::Path, token: &str, gui_helper: bool) -> Result<(), String> {
     use std::io::Write as _;
     use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
     let mut file = std::fs::OpenOptions::new()
@@ -353,13 +353,17 @@ fn write_token_file(path: &std::path::Path, token: &str) -> Result<(), String> {
         .map_err(|error| format!("cannot open {}: {error}", path.display()))?;
     file.write_all(token.as_bytes())
         .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
-    // `mode` only shapes a newly created file; an existing one keeps its bits.
-    let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    // A plain daemon keeps the token to itself. A GUI-launched privileged
+    // helper (the --stop-file contract) must hand it over: the GUI runs as
+    // the console user and cannot read a 0600-root file, and the API is
+    // loopback-only, so the token's reach equals the engine's own reach.
+    let mode = if gui_helper { 0o644 } else { 0o600 };
+    let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode));
     Ok(())
 }
 
 #[cfg(not(unix))]
-fn write_token_file(path: &std::path::Path, token: &str) -> Result<(), String> {
+fn write_token_file(path: &std::path::Path, token: &str, _gui_helper: bool) -> Result<(), String> {
     std::fs::write(path, token.as_bytes())
         .map_err(|error| format!("cannot write {}: {error}", path.display()))
 }
