@@ -932,8 +932,11 @@ fn parse_short_id(s: &str) -> Result<Vec<u8>, String> {
     if s.is_empty() {
         return Ok(Vec::new());
     }
-    if !s.len().is_multiple_of(2) || s.len() > 16 {
-        return Err(format!("reality shortId must be up to 16 hex chars: {s:?}"));
+        // The byte-slicing below assumes ASCII hex: a multi-byte character could
+        // land a slice inside the character and panic, so non-ASCII input is a
+        // plain parse error, never a panic.
+    if !s.is_ascii() || !s.len().is_multiple_of(2) || s.len() > 16 {
+                return Err(format!("reality shortId must be up to 16 ASCII hex chars: {s:?}"));
     }
     (0..s.len())
         .step_by(2)
@@ -946,9 +949,11 @@ fn parse_short_id(s: &str) -> Result<Vec<u8>, String> {
 mod hex {
     #[derive(Debug)]
     pub struct Error;
-
-    pub fn decode_fallback(s: &str) -> Result<Vec<u8>, Error> {
-        if !s.len().is_multiple_of(2) {
+            pub fn decode_fallback(s: &str) -> Result<Vec<u8>, Error> {
+                // The byte-slicing below assumes ASCII hex: a multi-byte character
+        // could land a slice inside the character and panic, so non-ASCII
+                                // input is a plain error, never a panic.
+        if !s.is_ascii() || !s.len().is_multiple_of(2) {
             return Err(Error);
         }
         (0..s.len())
@@ -1137,6 +1142,18 @@ mod tests {
         assert_eq!(r.fingerprint, Fingerprint::Chrome);
         assert_eq!(l.outbound.stream.transport, Transport::Raw);
     }
+
+    #[test]
+    fn non_ascii_short_id_is_an_error_not_a_panic() {
+            // A truncated shortId ending in a multi-byte char (e.g. '…') used to land
+            // a byte slice inside the character and panic, aborting the whole run.
+            let bad = VLESS_REALITY.replace("sid=7963d08380d47375", "sid=7963…");
+            let err = parse_link(&bad).unwrap_err();
+            assert!(err.contains("shortId"), "unexpected: {err}");
+            assert!(parse_short_id("7963…").is_err());
+            assert!(hex::decode_fallback("7963…").is_err());
+    }
+    
 
     #[test]
     fn parses_websocket_link_with_early_data() {
